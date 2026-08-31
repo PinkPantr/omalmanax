@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "pinkpantr.almanax",
+  "name": "Almanax",
+  "version": "1.0.0",
+  "author": "pinkpantr",
+  "description": "Dofus Almanax offering of the day, with a browsable calendar popup",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Almanax",
+    "description": "Dofus Almanax offering of the day, with a browsable calendar popup",
+    "category": "Games",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "showOffering": true
+    },
+    "schema": [
+      {
+        "key": "showOffering",
+        "type": "boolean",
+        "label": "Show the offering name in the bar"
+      }
+    ]
+  }
+}

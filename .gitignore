@@ -1,0 +1,7 @@
+# Nothing generated lives in the repo — the dataset and artwork are cached
+# under ~/.cache/almanax/ at runtime.
+*.qmlc
+*.jsc
+__pycache__/
+*.py[cod]
+.DS_Store

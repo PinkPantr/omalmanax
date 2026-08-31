@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+"""Fetch the Almanax dataset and offering art into ~/.cache/almanax/.
+
+The source is the data file behind the dofuspourlesnoobs/dimtopia widget: one
+entry per day of the year, keyed by Dofus date ("31 Fraouctor") with no year,
+because the Almanax repeats on the same yearly cycle. Downloading the whole
+set once (~1.1 MB of art) buys an offline panel that can step to any day.
+"""
+import html
+import json
+import os
+import re
+import sys
+import tempfile
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+DATA_URL = "https://www.dimtopia.com/widget-almanax/js/widget-almanax-offrandes.js?v8"
+IMG_BASE = "https://www.dimtopia.com/widget-almanax/offering/"
+CACHE = Path.home() / ".cache/almanax"
+IMG_DIR = CACHE / "img"
+DATA = CACHE / "data.json"
+UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64)"}
+
+ENTRY = re.compile(r'\{date: "(.*?)".*?offeringIllu: "([^"]*)"\}', re.S)
+
+
+def get(url, timeout=20):
+    return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout).read()
+
+
+def field(blob, key, nxt):
+    m = re.search(key + r': "(.*?)", ' + nxt + ":", blob, re.S)
+    return m.group(1) if m else ""
+
+
+def clean(s):
+    return html.unescape(re.sub("<[^>]+>", "", s)).replace('\\"', '"').strip()
+
+
+def main():
+    IMG_DIR.mkdir(parents=True, exist_ok=True)
+
+    js = get(DATA_URL).decode("utf-8", "replace")
+    days = {}
+    for m in ENTRY.finditer(js):
+        blob = m.group(0)
+        days[m.group(1)] = {
+            "offrande": clean(field(blob, "offrande", "bonusTitle")),
+            "bonusTitle": clean(field(blob, "bonusTitle", "bonus")),
+            "bonus": clean(field(blob, "bonus", "offeringIllu")),
+            "illu": m.group(2),
+        }
+
+    if len(days) < 300:
+        print(f"almanax-sync: only parsed {len(days)} days, refusing to write", file=sys.stderr)
+        return 1
+
+    # Only the art we do not already have, so a re-sync is cheap.
+    missing = sorted({d["illu"] for d in days.values() if d["illu"] and not (IMG_DIR / d["illu"]).exists()})
+
+    def grab(name):
+        try:
+            (IMG_DIR / name).write_bytes(get(IMG_BASE + name, timeout=15))
+        except Exception:
+            pass
+
+    if missing:
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            list(pool.map(grab, missing))
+
+    # Atomic write: the panel reads this file on a timer and must never see
+    # a half-written one.
+    fd, tmp = tempfile.mkstemp(dir=str(CACHE))
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        json.dump({"days": days, "imgDir": str(IMG_DIR)}, fh, ensure_ascii=False)
+    os.replace(tmp, DATA)
+
+    print(f"almanax-sync: {len(days)} days, {len(missing)} new images")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
