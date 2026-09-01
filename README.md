@@ -1,10 +1,15 @@
 # Almanax for Omarchy
 
 A [Dofus](https://www.dofus.com) Almanax widget for the [Omarchy](https://omarchy.org)
-shell bar: today's offering in the bar, and a browsable calendar popup for any
-other day of the year.
+shell bar: today's offering in the bar, a browsable calendar popup for any
+other day of the year, and a search over the whole year's offerings and bonuses.
 
-![the bar widget and its calendar popup](docs/screenshot.png)
+<p align="center">
+  <img src="docs/theme-1.png" width="46%" alt="the calendar popup on a black Omarchy theme">
+  <img src="docs/theme-2.png" width="46%" alt="the same popup on a navy Omarchy theme">
+</p>
+
+<p align="center"><sub>The same plugin under two Omarchy themes.</sub></p>
 
 ## What it does
 
@@ -18,10 +23,44 @@ built like Omarchy's own clock popup:
   its full description
 - a relative label, so a browsed day says `Dans 3 jours` rather than leaving
   you to count squares
+- a search field above the grid, for the other half of the question
 
 It follows **Europe/Paris**, not your local timezone. The Almanax rolls over
 at midnight on Ankama's clock, so anywhere west of Paris the local date is the
 wrong answer for part of every day.
+
+## Search
+
+Browsing the calendar answers *what is on this day*. The search field answers
+*which day gives me this*, which is the question you actually have when you are
+deciding when to log in.
+
+![searching the whole year for an offering](docs/screenshot-search.png)
+
+Type anything and the grid gives way to the days that match, each with its date,
+how far away it is, the offering you have to hand over, and the bonus you get
+for it. Pick one — `Enter` or a click — and the calendar comes back on that day,
+with the full bonus description.
+
+- **Every day is a future date.** Results are the *next* occurrence of each
+  matching day, soonest first, so the top of the list is the one you can go and
+  do next. The Almanax repeats on a yearly cycle, so browsing far enough forward
+  always finds every match.
+- **Accents and case are ignored**, in both directions: `epine` finds
+  `2 Épine d'Armuguet`, and so does `ÉPINE`.
+- **Several words narrow, they do not widen.** `bois abondant` lists only the
+  days matching both.
+- **Offerings and bonus names rank above descriptions.** A word that only turns
+  up inside a paragraph of bonus text sorts below the days that are actually
+  named for it.
+- Broad queries list the 60 soonest matches and say how many more there are.
+
+## Theming
+
+There is not one hardcoded colour in this plugin. Every surface, label, border
+and accent reads Omarchy's own `Color` tokens, so it repaints itself the moment
+you switch themes — the search field included, since it is the shell's own text
+input rather than a lookalike. The two screenshots above are the same code.
 
 ## Interactions
 
@@ -35,20 +74,26 @@ wrong answer for part of every day.
 | Panel | arrow keys | step a day (left/right) or a week (up/down) |
 | Panel | `[` `]` | previous/next month |
 | Panel | `t` | back to today |
+| Panel | `/` | jump to the search field |
 | Panel | `Esc` | close |
+| Search | type | list the matching days, soonest first |
+| Search | `↑` `↓` | move through the results |
+| Search | `Enter` | open the highlighted day on the calendar |
+| Search | click a result | open that day on the calendar |
+| Search | `Esc` or `✕` | clear the search, back to the calendar |
 
-Reopening the panel always returns to today.
+Reopening the panel always returns to today, with no query left over.
 
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/<you>/omarchy-almanax.git --enable --yes
+omarchy plugin add https://github.com/PinkPantr/omalmanax.git --enable --yes
 ```
 
 Or by hand:
 
 ```bash
-git clone https://github.com/<you>/omarchy-almanax.git \
+git clone https://github.com/PinkPantr/omalmanax.git \
   ~/.config/omarchy/plugins/pinkpantr.almanax
 omarchy-shell shell rescanPlugins
 omarchy plugin enable pinkpantr.almanax right

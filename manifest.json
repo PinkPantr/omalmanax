@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "id": "pinkpantr.almanax",
   "name": "Almanax",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "pinkpantr",
-  "description": "Dofus Almanax offering of the day, with a browsable calendar popup",
+  "description": "Dofus Almanax offering of the day, with a browsable calendar popup and a search across the year",
   "kinds": [
     "bar-widget"
   ],
@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "Almanax",
-    "description": "Dofus Almanax offering of the day, with a browsable calendar popup",
+    "description": "Dofus Almanax offering of the day, with a browsable calendar popup and a search across the year",
     "category": "Games",
     "allowMultiple": false,
     "defaultSection": "right",

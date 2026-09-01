@@ -107,3 +107,114 @@ function relativeLabel(selected, today) {
   if (days > 0) return "Dans " + days + " jours"
   return "Il y a " + (-days) + " jours"
 }
+
+// ---- Search --------------------------------------------------------------
+//
+// The dataset is keyed by Dofus date with no year, so a hit has to be mapped
+// back onto a real calendar date before it can be listed. Every result is the
+// *next* occurrence of that day, which is the question actually being asked:
+// not "where in the year does this sit" but "when can I next go and do it".
+
+// French accents folded by hand rather than through String.normalize(), which
+// is not something to lean on in the shell's JS engine. The set is closed —
+// the dataset is French — so a table is both exact and cheap.
+var FOLD = {
+  "à": "a", "á": "a", "â": "a", "ä": "a", "ã": "a", "å": "a",
+  "ç": "c",
+  "è": "e", "é": "e", "ê": "e", "ë": "e",
+  "ì": "i", "í": "i", "î": "i", "ï": "i",
+  "ñ": "n",
+  "ò": "o", "ó": "o", "ô": "o", "ö": "o", "õ": "o",
+  "ù": "u", "ú": "u", "û": "u", "ü": "u",
+  "ý": "y", "ÿ": "y",
+  "œ": "oe", "æ": "ae"
+}
+
+function normalize(text) {
+  return String(text === null || text === undefined ? "" : text)
+    .toLowerCase()
+    .replace(/[àáâäãåçèéêëìíîïñòóôöõùúûüýÿœæ]/g, function (c) { return FOLD[c] || c })
+    .replace(/[’‘‚´`]/g, "'")
+}
+
+// Whitespace-separated terms, all of which must match, so "sagesse pandawa"
+// narrows rather than widens.
+function searchTerms(query) {
+  var parts = normalize(query).split(/\s+/)
+  var terms = []
+  for (var i = 0; i < parts.length; i++) if (parts[i] !== "") terms.push(parts[i])
+  return terms
+}
+
+function matchesAll(haystack, terms) {
+  for (var i = 0; i < terms.length; i++) if (haystack.indexOf(terms[i]) === -1) return false
+  return true
+}
+
+// "31 Fraouctor" -> { month: 7, day: 31 }
+function parseAlmanaxKey(key) {
+  var m = /^\s*(\d{1,2})\s+(\S+)\s*$/.exec(String(key || ""))
+  if (!m) return null
+  var month = DOFUS_MONTHS.indexOf(m[2])
+  if (month < 0) return null
+  return { month: month, day: parseInt(m[1], 10) }
+}
+
+// The next time this month/day comes round, on or after `from`. Walking years
+// rather than adding one is what keeps 29 Flovor honest: Date rolls an
+// impossible 29 February into 1 March, so the guard rejects that year and the
+// search carries on to the next leap one.
+function nextOccurrence(month, day, from) {
+  for (var i = 0; i < 8; i++) {
+    var d = new Date(from.getFullYear() + i, month, day)
+    if (d.getMonth() === month && d.getDate() === day && d >= from) return d
+  }
+  return null
+}
+
+// Rank 0 = the query hit the offering or the bonus name, rank 1 = it only
+// turned up inside the bonus description. Rank sorts first so an incidental
+// word in a paragraph never outranks the thing you actually named; within a
+// rank the soonest day wins.
+function searchDays(days, query, today, limit) {
+  var terms = searchTerms(query)
+  var empty = { total: 0, capped: false, rows: [] }
+  if (terms.length === 0 || !days) return empty
+
+  var from = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  var keys = Object.keys(days)
+  var results = []
+
+  for (var i = 0; i < keys.length; i++) {
+    var entry = days[keys[i]]
+    if (!entry) continue
+
+    var named = normalize(entry.offrande) + " " + normalize(entry.bonusTitle)
+    if (!matchesAll(named + " " + normalize(entry.bonus), terms)) continue
+
+    var parsed = parseAlmanaxKey(keys[i])
+    if (!parsed) continue
+    var when = nextOccurrence(parsed.month, parsed.day, from)
+    if (!when) continue
+
+    results.push({
+      key: keys[i],
+      entry: entry,
+      year: when.getFullYear(),
+      month: when.getMonth(),
+      day: when.getDate(),
+      weekday: when.getDay(),
+      away: Math.round((when - from) / 86400000),
+      rank: matchesAll(named, terms) ? 0 : 1
+    })
+  }
+
+  results.sort(function (a, b) { return a.rank - b.rank || a.away - b.away })
+
+  var capped = limit > 0 && results.length > limit
+  return {
+    total: results.length,
+    capped: capped,
+    rows: capped ? results.slice(0, limit) : results
+  }
+}
