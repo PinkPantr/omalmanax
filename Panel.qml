@@ -333,14 +333,14 @@ Panel {
           font.pixelSize: Style.font.bodySmall
 
           MouseArea {
-          id: clearMouse
-          anchors.fill: parent
-          anchors.margins: -Style.space(6)
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
-          onClicked: root.dismissSearch()
+            id: clearMouse
+            anchors.fill: parent
+            anchors.margins: -Style.space(6)
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.dismissSearch()
+          }
         }
-      }
       }
 
       Flickable {
@@ -748,7 +748,10 @@ Panel {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: root.cursor = resultRow.index
+                    // CHANGED 2026-10-06: was onEntered. Arrow-key scrolling
+                    // slid rows under a still mouse and snapped the cursor to
+                    // them. Moving the mouse is what should take the cursor.
+                    onPositionChanged: root.cursor = resultRow.index
                     onClicked: root.openResult(resultRow.modelData)
                   }
                 }

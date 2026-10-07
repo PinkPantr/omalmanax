@@ -115,7 +115,7 @@ Set these on the widget's entry in `~/.config/omarchy/shell.json`:
 | Key | Default | Effect |
 |---|---|---|
 | `showOffering` | `true` | `true` shows the offering in the bar, `false` shows the bonus name |
-| `weekStartDay` | `1` (Monday) | 0 = Sunday … 6 = Saturday |
+| `weekStartDay` | `1` (Monday) | 0 = Sunday … 6 = Saturday. Also in the widget's settings screen |
 
 ## How the data works
 
@@ -123,7 +123,7 @@ Set these on the widget's entry in `~/.config/omarchy/shell.json`:
 Almanax widget and caches it under `~/.cache/almanax/`:
 
 - `data.json` — all 366 days
-- `img/` — the offering artwork, ~1.7 MB for the full year
+- `img/` — the offering artwork, ~1.6 MB for the full year
 
 Entries are keyed by Dofus date (`31 Fraouctor`) with no year, because the
 Almanax repeats on the same yearly cycle. That is what lets the panel step to
@@ -131,7 +131,7 @@ any date, forward or back, with no further network access — **once synced, the
 whole thing works offline.**
 
 The widget runs the sync itself on shell start and again at each Paris
-midnight. Only artwork that is missing gets downloaded, so a re-sync is cheap.
+midnight. Only artwork that is missing gets downloaded, so a re-sync is cheap. If a sync fails (offline at boot, say), it tries again every 5 minutes until it works.
 `data.json` is written atomically, so the panel never reads a half-written
 file. You can force a sync with:
 

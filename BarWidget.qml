@@ -134,12 +134,26 @@ BarWidget {
     }
   }
 
+  // CHANGED 2026-10-06: a failed sync used to be final for the day, because
+  // syncedFor was already set. Offline at boot meant no data until the next
+  // Paris midnight. A non-zero exit now arms this timer and tries again.
+  Timer {
+    id: syncRetry
+    interval: 5 * 60 * 1000
+    repeat: false
+    onTriggered: syncProc.running = true
+  }
+
   Process {
     id: syncProc
     command: [root.syncScript]
     stdout: StdioCollector { waitForEnd: true }
     stderr: StdioCollector { waitForEnd: true }
-    onExited: dataFile.reload()
+    onExited: function(exitCode, exitStatus) {
+      dataFile.reload()
+      if (exitCode === 0) syncRetry.stop()
+      else syncRetry.restart()
+    }
   }
 
   FileView {

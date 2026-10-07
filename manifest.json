@@ -18,13 +18,24 @@
     "allowMultiple": false,
     "defaultSection": "right",
     "defaults": {
-      "showOffering": true
+      "showOffering": true,
+      "weekStartDay": 1
     },
     "schema": [
       {
         "key": "showOffering",
         "type": "boolean",
         "label": "Show the offering name in the bar"
+      },
+      {
+        "key": "weekStartDay",
+        "type": "integer",
+        "label": "First day of the week",
+        "min": 0,
+        "max": 6,
+        "step": 1,
+        "defaultValue": 1,
+        "description": "0 = Sunday, 1 = Monday, up to 6 = Saturday."
       }
     ]
   }

@@ -4,7 +4,7 @@
 The source is the data file behind the dofuspourlesnoobs/dimtopia widget: one
 entry per day of the year, keyed by Dofus date ("31 Fraouctor") with no year,
 because the Almanax repeats on the same yearly cycle. Downloading the whole
-set once (~1.1 MB of art) buys an offline panel that can step to any day.
+set once (~1.6 MB of art) buys an offline panel that can step to any day.
 """
 import html
 import json
@@ -21,7 +21,13 @@ IMG_BASE = "https://www.dimtopia.com/widget-almanax/offering/"
 CACHE = Path.home() / ".cache/almanax"
 IMG_DIR = CACHE / "img"
 DATA = CACHE / "data.json"
-UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64)"}
+# CHANGED 2026-10-06: was a fake "Mozilla/5.0 (X11; Linux x86_64)" browser UA.
+# Say who we are instead; this reads someone else's public widget data.
+UA = {"User-Agent": "omalmanax/1.1 (+https://github.com/PinkPantr/omalmanax)"}
+
+# Art filenames come from the remote file and are joined onto a local path, so
+# anything that is not a plain filename is refused (no "../", no subfolders).
+SAFE_NAME = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.\-]*$")
 
 ENTRY = re.compile(r'\{date: "(.*?)".*?offeringIllu: "([^"]*)"\}', re.S)
 
@@ -42,7 +48,11 @@ def clean(s):
 def main():
     IMG_DIR.mkdir(parents=True, exist_ok=True)
 
-    js = get(DATA_URL).decode("utf-8", "replace")
+    try:
+        js = get(DATA_URL).decode("utf-8", "replace")
+    except Exception as e:
+        print(f"almanax-sync: could not fetch the dataset: {e}", file=sys.stderr)
+        return 1
     days = {}
     for m in ENTRY.finditer(js):
         blob = m.group(0)
@@ -58,27 +68,47 @@ def main():
         return 1
 
     # Only the art we do not already have, so a re-sync is cheap.
+    for d in days.values():
+        if not SAFE_NAME.match(d["illu"]):
+            d["illu"] = ""
     missing = sorted({d["illu"] for d in days.values() if d["illu"] and not (IMG_DIR / d["illu"]).exists()})
 
+    failed = []
+
     def grab(name):
+        # Download to a temp name, then rename: a crash mid-write must not
+        # leave a truncated file that the "already have it" check trusts.
+        tmp_img = IMG_DIR / (name + ".part")
         try:
-            (IMG_DIR / name).write_bytes(get(IMG_BASE + name, timeout=15))
-        except Exception:
-            pass
+            body = get(IMG_BASE + name, timeout=15)
+            if not body:
+                raise ValueError("empty response")
+            tmp_img.write_bytes(body)
+            os.replace(tmp_img, IMG_DIR / name)
+        except Exception as e:
+            failed.append(name)
+            print(f"almanax-sync: could not fetch {name}: {e}", file=sys.stderr)
+            tmp_img.unlink(missing_ok=True)
 
     if missing:
         with ThreadPoolExecutor(max_workers=12) as pool:
             list(pool.map(grab, missing))
 
-    # Atomic write: the panel reads this file on a timer and must never see
-    # a half-written one.
+    # Atomic write: the panel watches this file and must never see a
+    # half-written one.
     fd, tmp = tempfile.mkstemp(dir=str(CACHE))
-    with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        json.dump({"days": days, "imgDir": str(IMG_DIR)}, fh, ensure_ascii=False)
-    os.replace(tmp, DATA)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump({"days": days, "imgDir": str(IMG_DIR)}, fh, ensure_ascii=False)
+        os.replace(tmp, DATA)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
-    print(f"almanax-sync: {len(days)} days, {len(missing)} new images")
-    return 0
+    print(f"almanax-sync: {len(days)} days, {len(missing) - len(failed)} new images, {len(failed)} failed")
+    # Non-zero when art is missing, so the widget tries again soon rather
+    # than waiting for tomorrow.
+    return 2 if failed else 0
 
 
 if __name__ == "__main__":
